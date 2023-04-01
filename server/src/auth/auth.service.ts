@@ -32,9 +32,7 @@ export class AuthService {
       throw new ForbiddenException('Credentials incorrect');
     }
 
-    delete user.hash;
-
-    return user;
+    return this.signToken(user.id, user.email);
   }
 
   async signup(dto: AuthDto) {
@@ -48,6 +46,8 @@ export class AuthService {
           hash,
         },
       });
+
+      return this.signToken(user.id, user.email);
     } catch (error) {
       if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
@@ -56,20 +56,24 @@ export class AuthService {
       }
       throw error;
     }
-
-    delete user.hash;
-
-    return user;
   }
 
-  async signToken(userId: number, email: string) {
+  async signToken(
+    userId: number,
+    email: string,
+  ): Promise<{ access_token: string }> {
     const payload = {
       sub: userId,
+      email,
     };
 
-    return this.jwtService.signAsync(payload, {
+    const token = await this.jwtService.signAsync(payload, {
       expiresIn: '15m',
       secret: this.configService.get('JWT_SECRET'),
     });
+
+    return {
+      access_token: token,
+    };
   }
 }
