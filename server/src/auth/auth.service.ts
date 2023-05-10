@@ -24,13 +24,13 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new ForbiddenException('Credentials incorrect');
+      throw new ForbiddenException('Access Denied');
     }
 
     const isPasswordMatched = await argon.verify(user.hash, dto.password);
 
     if (!isPasswordMatched) {
-      throw new ForbiddenException('Credentials incorrect');
+      throw new ForbiddenException('Access Denied');
     }
 
     const tokens = await this.getTokens(user.id, user.email);
@@ -41,9 +41,8 @@ export class AuthService {
   async signup(dto: AuthDto): Promise<Tokens> {
     const hash = await this.hashData(dto.password);
 
-    let user = null;
     try {
-      user = await this.prismaService.user.create({
+      const user = await this.prismaService.user.create({
         data: {
           email: dto.email,
           hash,
@@ -63,7 +62,7 @@ export class AuthService {
     }
   }
 
-  async logout(userId: number) {
+  async logout(userId: number): Promise<boolean> {
     await this.prismaService.user.updateMany({
       where: {
         id: userId,
@@ -86,14 +85,18 @@ export class AuthService {
       },
     });
 
-    // !user
+    if (!user || !user.hashedRt) {
+      throw new ForbiddenException('Access denied');
+    }
 
     const isRefreshTokenMatched = await argon.verify(
       user.hashedRt,
       refreshToken,
     );
 
-    // !isRefreshTokenMatched
+    if (!isRefreshTokenMatched) {
+      throw new ForbiddenException('Access denied');
+    }
 
     const tokens = await this.getTokens(user.id, user.email);
     await this.updateRefreshTokenHash(user.id, tokens.refreshToken);
@@ -125,8 +128,8 @@ export class AuthService {
           email,
         },
         {
-          expiresIn: 60 * 15,
-          secret: this.configService.get('ACCESS_TOKEN_SECRET'),
+          expiresIn: '15m',
+          secret: this.configService.get<string>('ACCESS_TOKEN_SECRET'),
         },
       ),
       this.jwtService.signAsync(
@@ -135,8 +138,8 @@ export class AuthService {
           email,
         },
         {
-          expiresIn: 60 * 60 * 24 * 7,
-          secret: this.configService.get('REFRESH_TOKEN_SECRET'),
+          expiresIn: '7d',
+          secret: this.configService.get<string>('REFRESH_TOKEN_SECRET'),
         },
       ),
     ]);
