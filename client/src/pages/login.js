@@ -1,27 +1,46 @@
-import React from "react";
 import styled from "styled-components";
 import { useForm } from "react-hook-form";
+import { useRouter } from 'next/navigation';
+
+import { useLoginMutation } from "@/api/auth";
 
 import { Button, Input } from "@/components/typography";
+import Cookies from "js-cookie";
+import { useEffect, useState } from "react";
 
 const Login = () => {
-  const { register, handleSubmit } = useForm();
+  const router = useRouter();
+  // const { register, handleSubmit } = useForm();
+  const [email, setEmail] = useState('test@test.com');
+  const [password, setPassword] = useState('test123');
+
+  const [login, { data, isSuccess }] = useLoginMutation();
+
+  console.log({ isSuccess });
+
+  const loginFunc = () => {
+    login({ email, password }); // <- ovo ne saceka zapravo, tj kada se ispuni odmah nakon await on ga vrati na false,
+    // i onda da bi se iskoristio taj jedan momenat kad aje tru mora useEffect
+  };
+
+  useEffect(() => {
+    if (!isSuccess) {
+      return;
+    }
+  
+    Cookies.set('accessToken', data.accessToken);
+    Cookies.set('refreshToken', data.refreshToken);
+    router.push('/');
+  }, [isSuccess, data]);
+
   return (
     <StyledContainer>
       <StyledForm
-        onSubmit={handleSubmit(async (e) => {
-          const res = await fetch("http://localhost:3333/auth/login", {
-            method: "POST",
-            body: JSON.stringify(e),
-            headers: { "Content-type": "application/json" },
-          });
-          const user = await res.json();
-          localStorage.setItem('accessToken', user.accessToken);
-        })}
+        // onSubmit={loginFunc}
       >
-        <Input type="email" {...register("email")} />
-        <Input type="password" {...register("password")} />
-        <Button type="subimt">Login</Button>
+        <Input type="text" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <Button type="button" onClick={loginFunc}>Login</Button>
       </StyledForm>
     </StyledContainer>
   );

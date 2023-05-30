@@ -1,14 +1,21 @@
+import { useSelector } from 'react-redux';
 import Link from "next/link";
 import styled from "styled-components";
 
+import { selectGetMeQueryResponse } from '@/api/auth';
+
 const Header = () => {
+  const user = useSelector(selectGetMeQueryResponse);
+  console.log({ user });
   return (
     <StyledHeader>
       <Link href="/">Home</Link>
-      <span>
-        <Link href="/login">Login</Link>
-        <Link href="/signup">Signup</Link>
-      </span>
+      {!user && (
+        <span>
+          <Link href="/login">Login</Link>
+          <Link href="/signup">Signup</Link>
+        </span>
+      )}
     </StyledHeader>
   );
 };
